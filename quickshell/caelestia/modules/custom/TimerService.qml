@@ -62,6 +62,16 @@ Singleton {
         return 0;
     }
 
+    // Task text linked to the running focus session ("" = none).
+    // Set by startFocusFor(), cleared by ackFocusCheck().
+    property string focusTask: ""
+    // True when a live session ended with a linked task but no widget
+    // was open to check it — the widget reconciles this on next open.
+    property bool pendingFocusCheck: false
+
+    // Emitted when a live focus session ends with a linked task.
+    signal focusSessionCompleted(task: string)
+
     // Format MM:SS, e.g. 1500 → "25:00"
     function fmt(s: int): string {
         const m = Math.floor(Math.max(0, s) / 60);
@@ -122,26 +132,62 @@ Singleton {
         root.saveState();
     }
 
-    // Advance the pomodoro cycle when a session ends. silent=true skips the
-    // notification (stale on-disk state), but still advances + saves.
-    function finishSession(silent: bool): void {
+    // Start a focus session bound to a task (todo focus-link).
+    function startFocusFor(taskText: string): void {
+        countdown.stop();
+        root.mode = "focus";
+        root.totalSeconds = root.remainingSeconds = root.modeDuration("focus");
+        root.focusTask = taskText;
+        root.pendingFocusCheck = false;
+        root.isFinished = false;
+        root.isRunning = true;
+        countdown.start();
+        root.saveState();
+    }
+
+    // Advance the pomodoro cycle when a live session ends.
+    // Only call this for sessions that actually ran in this process —
+    // ghosts resurrected from disk go through ghostExpire() instead.
+    function finishSession(): void {
         countdown.stop();
         root.isRunning = false;
         if (root.mode === "focus") {
             root.sessionsCompleted += 1;
             const longBreak = root.sessionsCompleted % root.cycleLength === 0;
+            const doneTask = root.focusTask;
             root.mode = longBreak ? "long" : "short";
             root.totalSeconds = root.remainingSeconds = root.modeDuration(root.mode);
             root.isFinished = true;
-            if (!silent)
-                root.notifyDone("Focus session done", longBreak ? "4 sessions — take a long break" : "Take a short break");
+            root.pendingFocusCheck = doneTask !== "";
+            root.notifyDone("Focus session done", longBreak ? "4 sessions — take a long break" : "Take a short break");
+            if (doneTask !== "")
+                root.focusSessionCompleted(doneTask);
         } else {
             root.mode = "focus";
             root.totalSeconds = root.remainingSeconds = root.modeDuration("focus");
             root.isFinished = true;
-            if (!silent)
-                root.notifyDone("Break over", "Back to focus");
+            root.notifyDone("Break over", "Back to focus");
         }
+        root.saveState();
+    }
+
+    // Called by the todo widget after checking the linked task.
+    function ackFocusCheck(): void {
+        root.pendingFocusCheck = false;
+        root.focusTask = "";
+        root.saveState();
+    }
+
+    // Expire quietly after a restart: the countdown died with the process,
+    // so the cycle does not advance and no task is checked. Notifies only
+    // if the expiry just happened (no phantom notifications from stale data).
+    function ghostExpire(): void {
+        countdown.stop();
+        root.remainingSeconds = 0;
+        root.isRunning = false;
+        root.isFinished = true;
+        root.focusTask = "";
+        root.pendingFocusCheck = false;
         root.saveState();
     }
 
@@ -189,7 +235,9 @@ Singleton {
                 soundEnabled: root.soundEnabled,
                 focusMinutes: root.focusMinutes,
                 shortMinutes: root.shortMinutes,
-                longMinutes: root.longMinutes
+                longMinutes: root.longMinutes,
+                focusTask: root.focusTask,
+                pendingFocusCheck: root.pendingFocusCheck
             }));
         } catch (e) {
             console.warn("[TimerService] failed to save:", e);
@@ -220,6 +268,10 @@ Singleton {
                 root.sessionsCompleted = Math.max(0, s.sessionsCompleted);
             if (typeof s.soundEnabled === "boolean")
                 root.soundEnabled = s.soundEnabled;
+            if (typeof s.focusTask === "string")
+                root.focusTask = s.focusTask;
+            if (typeof s.pendingFocusCheck === "boolean")
+                root.pendingFocusCheck = s.pendingFocusCheck;
             if (typeof s.mode === "string" && (s.mode === "focus" || s.mode === "short" || s.mode === "long"))
                 root.mode = s.mode;
             if (typeof s.total === "number")
@@ -235,9 +287,16 @@ Singleton {
                     root.isRunning = true;
                     countdown.start();
                 } else {
-                    // Expired while away. Only report if it just happened —
-                    // a stale timer.json must not pop a phantom notification.
-                    root.finishSession(Date.now() - s.endTime >= 5 * 60 * 1000);
+                    // Expired while away (possibly across a restart).
+                    // Ghosts never advance the cycle or check tasks —
+                    // finishSession() is reserved for sessions that ran here.
+                    // Notify only if the expiry just happened.
+                    const recent = Date.now() - s.endTime < 5 * 60 * 1000;
+                    const wasFocus = root.mode === "focus";
+                    root.ghostExpire();
+                    if (recent)
+                        root.notifyDone(wasFocus ? "Focus session done" : "Break over",
+                            wasFocus ? "Take a short break" : "Back to focus");
                 }
             }
         } catch (e) {
@@ -254,7 +313,7 @@ Singleton {
             if (root.remainingSeconds > 0)
                 root.remainingSeconds -= 1;
             if (root.remainingSeconds <= 0)
-                root.finishSession(false);
+                root.finishSession();
         }
     }
 
