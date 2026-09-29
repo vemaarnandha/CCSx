@@ -23,12 +23,13 @@ StyledRect {
     property bool showAddDialog: false
 
     // Projections of the service list (end4 pattern: map + originalIndex).
-    readonly property var unfinishedTasks: TodoService.list.map(function(item, i) {
+    // Guard ?? [] so first frames before the singleton loads don't spam WARN.
+    readonly property var unfinishedTasks: (TodoService.list ?? []).map(function(item, i) {
         return { text: item.text, done: item.done, originalIndex: i };
     }).filter(function(item) {
         return !item.done;
     })
-    readonly property var doneTasks: TodoService.list.map(function(item, i) {
+    readonly property var doneTasks: (TodoService.list ?? []).map(function(item, i) {
         return { text: item.text, done: item.done, originalIndex: i };
     }).filter(function(item) {
         return item.done;
@@ -65,7 +66,7 @@ StyledRect {
                 Layout.fillWidth: true
             }
             StyledText {
-                text: qsTr("%1 left").arg(root.unfinishedTasks.length)
+                text: qsTr("%1 left").arg((root.unfinishedTasks ?? []).length)
                 color: Colours.palette.m3onSurfaceVariant
             }
         }
@@ -160,7 +161,7 @@ StyledRect {
         // Clear-completed link under the Done tab.
         StyledText {
             Layout.alignment: Qt.AlignHCenter
-            visible: root.currentTab === 1 && root.doneTasks.length > 0
+            visible: root.currentTab === 1 && (root.doneTasks ?? []).length > 0
             text: qsTr("Clear completed")
             color: Colours.palette.m3error
             font.underline: true
@@ -195,6 +196,7 @@ StyledRect {
         }
 
         StyledRect {
+            id: dialog
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter

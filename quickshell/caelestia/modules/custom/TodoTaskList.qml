@@ -21,11 +21,11 @@ Item {
         clip: true
         spacing: Tokens.spacing.small
         boundsBehavior: Flickable.StopAtBounds
-        model: root.taskList.length
+        model: (root.taskList ?? []).length
 
         delegate: StyledRect {
             required property int index
-            readonly property var entry: root.taskList[index]
+            readonly property var entry: (root.taskList ?? [])[index] ?? ({ text: "", done: false, originalIndex: -1 })
 
             width: ListView.view.width
             implicitHeight: 48
@@ -85,7 +85,7 @@ Item {
     // Empty placeholder (icon + text, centered).
     Column {
         anchors.centerIn: parent
-        visible: root.taskList.length === 0
+        visible: (root.taskList ?? []).length === 0
         spacing: Tokens.spacing.small
 
         MaterialIcon {
