@@ -1,54 +1,44 @@
-// DashboardIntegration.example.qml — CONTOH, jangan di-load langsung.
-// Copy salah satu opsi di bawah ke file dashboard Caelestia kamu.
+// DashboardIntegration.example.qml — EXAMPLE, do not load directly.
+// Copy one of the options below into your Caelestia dashboard files.
 //
-// OPSI A (disarankan): Tambah tab baru di modules/dashboard/Content.qml
+// OPTION A (recommended, currently live): New tab in modules/dashboard/Content.qml
 // ─────────────────────────────────────────────────────────────────────
-// 1. Import di atas Content.qml:
-//    import "../custom/TimerWidget.qml" as TimerWidget  // atau via Loader
+// 1. Import at the top of Content.qml (sibling-dir import, same pattern as
+//    built-ins like `import "dash"`):
+//    import "../custom"
 //
-// 2. Tambahkan entry ke `dashboardTabs` (sejajar Dashboard/Media/Performance):
+// 2. Add an entry to `dashboardTabs` (alongside Dashboard/Media/Performance):
 //
-//    readonly property var dashboardTabs: {
-//        const allTabs = [
-//            { component: dashComponent, iconName: "dashboard", text: qsTr("Dashboard"), enabled: Config.dashboard.showDashboard },
-//            // ... tab bawaan lain ...
-//            {
-//                component: focusComponent,
-//                iconName: "timer",
-//                text: qsTr("Fokus"),
-//                enabled: true
-//            }
-//        ];
-//        return allTabs.filter(tab => tab.enabled);
+//    {
+//        component: focusComponent,
+//        iconName: "timer",
+//        text: Tr.tr("Focus"),
+//        enabled: true
 //    }
 //
-// 3. Definisikan komponennya (sejajar dashComponent/mediaComponent):
+// 3. Define the component (alongside dashComponent/mediaComponent):
 //
 //    Component {
 //        id: focusComponent
 //        RowLayout {
-//            spacing: Appearance.spacing.normal
-//            TimerWidget {}
-//            TodoWidget {}
+//            spacing: Tokens.spacing.medium
+//            TimerWidget { Layout.alignment: Qt.AlignTop }
+//            TodoWidget { Layout.alignment: Qt.AlignTop }
 //        }
 //    }
 //
-//    Catatan import: karena Content.qml ada di modules/dashboard/,
-//    panggil widget via relative path atau daftarkan di qmldir.
-//    Paling gampang: taruh file di modules/custom/ lalu import "../custom/TimerWidget.qml".
 //
-//
-// OPSI B: Sisip langsung ke dalam tab Dashboard (modules/dashboard/dash/Dash.qml)
+// OPTION B: Embed directly into the Dashboard tab (modules/dashboard/dash/Dash.qml)
 // ─────────────────────────────────────────────────────────────────────
 //    RowLayout {
 //        Layout.fillWidth: true
-//        spacing: Appearance.spacing.normal
+//        spacing: Tokens.spacing.medium
 //        TimerWidget { Layout.fillWidth: true }
 //        TodoWidget { Layout.fillWidth: true }
 //    }
 //
 //
-// OPSI C: Standalone test tanpa Caelestia (debug cepat)
+// OPTION C: Standalone test without Caelestia (quick debug)
 // ─────────────────────────────────────────────────────────────────────
-//    Jalankan: qs -p /path/ke/TimerWidget.qml
-//    Untuk TodoWidget yang butuh Paths.home, mock dulu atau load dalam shell penuh.
+//    Run: qs -p /path/to/TimerWidget.qml
+//    For TodoWidget (needs Paths.home), mock it first or load inside the full shell.

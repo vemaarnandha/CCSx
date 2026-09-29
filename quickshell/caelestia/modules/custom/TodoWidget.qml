@@ -1,8 +1,8 @@
-// TodoWidget.qml — To-Do List QML-only dengan persistensi JSON untuk caelestia-shell
-// Lokasi aktif: ~/.config/quickshell/caelestia/modules/custom/TodoWidget.qml
-// Data: ~/.config/quickshell/caelestia/todos.json (dibuat otomatis saat pertama save)
-// Pola: ListModel (reaktif) + FileView (baca/tulis file) + debounce Timer (hemat I/O).
-// Tanpa Python, tanpa IPC Niri — murni Quickshell.Io, cocok untuk Hyprland.
+// TodoWidget.qml — QML-only To-Do List with JSON persistence for caelestia-shell
+// Live location: ~/.config/quickshell/caelestia/modules/custom/TodoWidget.qml
+// Data: ~/.config/quickshell/caelestia/todos.json (auto-created on first save)
+// Pattern: ListModel (reactive) + FileView (file read/write) + debounce Timer (low I/O).
+// No Python, no Niri IPC — pure Quickshell.Io, fits Hyprland.
 
 import QtQuick
 import QtQuick.Layouts
@@ -22,19 +22,19 @@ StyledRect {
     implicitWidth: 300
     implicitHeight: layout.implicitHeight + Tokens.padding.large * 2
 
-    // ── Model reaktif (sumber kebenaran untuk ListView) ──
-    // Tiap item: { "text": string, "done": bool }
+    // ── Reactive model (source of truth for the ListView) ──
+    // Each item: { "text": string, "done": bool }
     ListModel {
         id: todos
     }
 
-    // Guard agar tidak save saat loading awal.
+    // Guard against saving while initially loading.
     property bool ready: false
 
-    // ── Persistensi file ──
+    // ── File persistence ──
     FileView {
         id: store
-        // Paths.home berasal dari qs.utils (pola resmi Caelestia).
+        // Paths.home comes from qs.utils (official Caelestia pattern).
         path: Paths.home + "/.config/quickshell/caelestia/todos.json"
         printErrors: false
         watchChanges: true
@@ -43,7 +43,7 @@ StyledRect {
         onLoadedChanged: loadFromDisk()
     }
 
-    // Tulis ke disk, di-debounce 400ms agar tidak write tiap aksi.
+    // Write to disk, debounced 400ms to avoid a write per keystroke/action.
     Timer {
         id: saveDebounce
         interval: 400
@@ -56,7 +56,7 @@ StyledRect {
         saveDebounce.restart();
     }
 
-    // Muat JSON → ListModel. Toleran terhadap file kosong / korup / belum ada.
+    // Load JSON → ListModel. Tolerant of empty / corrupt / missing files.
     function loadFromDisk(): void {
         todos.clear();
         let raw = "";
@@ -79,12 +79,12 @@ StyledRect {
                 }
             }
         } catch (e) {
-            console.warn("[TodoWidget] todos.json korup, mulai dari kosong:", e);
+            console.warn("[TodoWidget] todos.json corrupt, starting empty:", e);
         }
         root.ready = true;
     }
 
-    // Simpan ListModel → JSON array.
+    // Save ListModel → JSON array.
     function saveToDisk(): void {
         const arr = [];
         for (let i = 0; i < todos.count; i++)
@@ -92,7 +92,7 @@ StyledRect {
         try {
             store.setText(JSON.stringify(arr, null, 2));
         } catch (e) {
-            console.warn("[TodoWidget] gagal menyimpan:", e);
+            console.warn("[TodoWidget] failed to save:", e);
         }
     }
 
@@ -127,7 +127,7 @@ StyledRect {
 
     Component.onCompleted: loadFromDisk()
 
-    // ── Tampilan ──
+    // ── Display ──
     ColumnLayout {
         id: layout
         anchors.fill: parent
@@ -160,7 +160,7 @@ StyledRect {
             }
         }
 
-        // Input + tombol add
+        // Input + add button
         RowLayout {
             Layout.fillWidth: true
             spacing: Tokens.spacing.small
@@ -168,7 +168,7 @@ StyledRect {
             StyledTextField {
                 id: input
                 Layout.fillWidth: true
-                placeholderText: qsTr("Tugas baru…")
+                placeholderText: qsTr("New task…")
                 onAccepted: {
                     root.addTodo(text);
                     text = "";
@@ -195,11 +195,11 @@ StyledRect {
             }
         }
 
-        // Daftar tugas
+        // Task list
         ListView {
             id: list
             Layout.fillWidth: true
-            // Tinggi adaptif: max ~5 item terlihat, selebihnya scroll.
+            // Adaptive height: ~5 items visible max, then scroll.
             Layout.preferredHeight: Math.min(contentHeight, 5 * 44 + spacing * 5)
             clip: true
             spacing: Tokens.spacing.small
@@ -209,7 +209,7 @@ StyledRect {
             StyledText {
                 anchors.centerIn: parent
                 visible: todos.count === 0
-                text: qsTr("Belum ada tugas")
+                text: qsTr("No tasks yet")
                 color: Colours.palette.m3onSurfaceVariant
             }
 
@@ -277,7 +277,7 @@ StyledRect {
         StyledText {
             Layout.alignment: Qt.AlignHCenter
             visible: todos.count > 0
-            text: qsTr("Hapus yang selesai")
+            text: qsTr("Clear completed")
             color: Colours.palette.m3error
             font.underline: true
             MouseArea {

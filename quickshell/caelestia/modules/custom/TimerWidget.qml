@@ -1,12 +1,12 @@
-// TimerWidget.qml — Countdown dengan DIAL PUTAR untuk caelestia-shell + Hyprland
-// Lokasi aktif: ~/.config/quickshell/caelestia/modules/custom/TimerWidget.qml
+// TimerWidget.qml — Countdown with ROTARY DIAL for caelestia-shell + Hyprland
+// Live location: ~/.config/quickshell/caelestia/modules/custom/TimerWidget.qml
 //
-// Cara pakai: KETUK atau GESER (drag) memutar pada lingkaran.
-//   Lingkaran penuh = 60 menit. Sudut dari jam 12 searah jarum jam:
-//   kanan (90°) = 15 mnt, bawah (180°) = 30 mnt, kiri (270°) = 45 mnt, atas = 60 mnt.
-//   (Tanpa keyboard — dashboard Caelestia memang tidak menerima keyboard focus.)
+// Usage: TAP or DRAG (rotate) on the circle.
+//   Full circle = 60 minutes. Angle from 12 o'clock, clockwise:
+//   right (90°) = 15 min, bottom (180°) = 30 min, left (270°) = 45 min, top = 60 min.
+//   (Fully mouse-driven — no keyboard needed.)
 //
-// Notifikasi: via `notify-send` → ditangkap NotificationDaemon bawaan Caelestia.
+// Notifications: via `notify-send` → picked up by Caelestia's built-in NotificationDaemon.
 
 import QtQuick
 import QtQuick.Layouts
@@ -23,23 +23,23 @@ StyledRect {
     implicitWidth: 300
     implicitHeight: layout.implicitHeight + Tokens.padding.large * 2
 
-    // ── State timer ──
+    // ── Timer state ──
     property int totalSeconds: 25 * 60
     property int remainingSeconds: 25 * 60
     property bool isRunning: false
     property bool isFinished: false
 
-    // Batas umum: 10 detik (chip tes) s/d 60 menit (dial penuh).
-    // Dial sendiri tetap snap 1..60 menit via setFromAngle().
+    // Clamp range: 10 seconds (test chip) to 60 minutes (full dial).
+    // The dial itself still snaps 1..60 minutes via setFromAngle().
     readonly property int minSeconds: 10
     readonly property int maxSeconds: 60 * 60
 
-    // Rasio 0..1 untuk arc progress.
+    // Ratio 0..1 for the progress arc.
     readonly property real progress: totalSeconds > 0 ? remainingSeconds / totalSeconds : 0
-    // Sudut knob dari jam 12 searah jarum jam: 1 detik = 0.1°.
+    // Knob angle from 12 o'clock, clockwise: 1 second = 0.1°.
     readonly property real dialAngle: (remainingSeconds / 10) % 360
 
-    // Format MM:SS, mis. 1500 → "25:00"
+    // Format MM:SS, e.g. 1500 → "25:00"
     function fmt(s: int): string {
         const m = Math.floor(Math.max(0, s) / 60);
         const sec = Math.max(0, s) % 60;
@@ -55,7 +55,7 @@ StyledRect {
         root.isFinished = false;
     }
 
-    // Konversi sudut dial (0..360) → menit (snap per menit, 0 = 60).
+    // Convert dial angle (0..360) → minutes (snap per minute, 0 = 60).
     function setFromAngle(angleDeg: real): void {
         let mins = Math.round(angleDeg / 6);
         if (mins <= 0)
@@ -64,8 +64,8 @@ StyledRect {
         root.setDuration(mins * 60);
     }
 
-    // Sudut dari posisi mouse relatif ke dial (0 = jam 12, searah jarum jam).
-    // Zona mati di tengah (r < 28) → kembalikan sudut saat ini (abaikan).
+    // Angle from mouse position relative to the dial (0 = 12 o'clock, clockwise).
+    // Dead zone in the center (r < 28) → return the current angle (ignore).
     function angleAt(mx: real, my: real): real {
         const dx = mx - dial.width / 2;
         const dy = my - dial.height / 2;
@@ -94,13 +94,13 @@ StyledRect {
         root.isFinished = false;
     }
 
-    // Butuh paket `libnotify` (Arch: `sudo pacman -S libnotify`).
+    // Requires the `libnotify` package (Arch: `sudo pacman -S libnotify`).
     function notifyDone(): void {
         Quickshell.execDetached([
             "notify-send", "-a", "caelestia-shell",
             "-u", "critical",
-            "Timer selesai",
-            "Waktu habis — istirahat dulu"
+            "Timer done",
+            "Time is up — take a break"
         ]);
     }
 
@@ -127,7 +127,7 @@ StyledRect {
         anchors.margins: Tokens.padding.large
         spacing: Tokens.spacing.small
 
-        // Judul + status
+        // Title + status
         RowLayout {
             Layout.fillWidth: true
             spacing: Tokens.spacing.small
@@ -144,26 +144,26 @@ StyledRect {
                 Layout.fillWidth: true
             }
             StyledText {
-                text: root.isRunning ? qsTr("jalan") : root.isFinished ? qsTr("selesai") : qsTr("putar dial")
+                text: root.isRunning ? qsTr("running") : root.isFinished ? qsTr("done") : qsTr("spin the dial")
                 color: root.isFinished ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
             }
         }
 
-        // ── Dial putar ──
+        // ── Rotary dial ──
         Item {
             id: dial
             Layout.alignment: Qt.AlignHCenter
             implicitWidth: 220
             implicitHeight: 220
 
-            property real trackR: 92   // radius lingkaran track
-            property real lineW: 14    // tebal ring
+            property real trackR: 92   // track circle radius
+            property real lineW: 14    // ring thickness
 
             Canvas {
                 id: ring
                 anchors.fill: parent
 
-                // Gambar ulang tiap sisa waktu / status berubah.
+                // Repaint on remaining-time / status changes.
                 Connections {
                     target: root
                     function onDialAngleChanged(): void { ring.requestPaint(); }
@@ -181,14 +181,14 @@ StyledRect {
                     const prog = (root.isFinished ? Colours.palette.m3error : Colours.palette.m3primary).toString();
                     const tick = Colours.palette.m3onSurfaceVariant.toString();
 
-                    // Track penuh
+                    // Full track
                     ctx.beginPath();
                     ctx.arc(cx, cy, R, 0, Math.PI * 2);
                     ctx.lineWidth = lw;
                     ctx.strokeStyle = track;
                     ctx.stroke();
 
-                    // Tick tiap 5 menit (lebih panjang tiap 15 menit)
+                    // Tick every 5 minutes (longer every 15 minutes)
                     ctx.lineWidth = 2;
                     ctx.strokeStyle = tick;
                     for (let m = 0; m < 60; m += 5) {
@@ -201,7 +201,7 @@ StyledRect {
                         ctx.stroke();
                     }
 
-                    // Label 15 / 30 / 45 / 60
+                    // Labels 15 / 30 / 45 / 60
                     ctx.fillStyle = tick;
                     ctx.font = "12px sans-serif";
                     ctx.textAlign = "center";
@@ -211,7 +211,7 @@ StyledRect {
                     ctx.fillText("30", cx, cy + R - 26);
                     ctx.fillText("45", cx - R + 26, cy);
 
-                    // Arc progress dari jam 12 searah jarum jam
+                    // Progress arc from 12 o'clock, clockwise
                     if (root.progress > 0) {
                         ctx.beginPath();
                         ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + root.progress * Math.PI * 2);
@@ -221,7 +221,7 @@ StyledRect {
                         ctx.stroke();
                     }
 
-                    // Knob di posisi sisa waktu
+                    // Knob at the remaining-time position
                     const ka = root.dialAngle * Math.PI / 180;
                     const kx = cx + R * Math.sin(ka), ky = cy - R * Math.cos(ka);
                     ctx.beginPath();
@@ -235,7 +235,7 @@ StyledRect {
                 }
             }
 
-            // MM:SS di tengah dial
+            // MM:SS in the dial center
             Column {
                 anchors.centerIn: parent
                 spacing: 0
@@ -247,12 +247,12 @@ StyledRect {
                 }
                 StyledText {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: Math.round(root.remainingSeconds / 60) + qsTr(" mnt")
+                    text: Math.round(root.remainingSeconds / 60) + qsTr(" min")
                     color: Colours.palette.m3onSurfaceVariant
                 }
             }
 
-            // Atur waktu via ketuk / geser (hanya saat tidak jalan).
+            // Set time via tap / drag (only while stopped).
             MouseArea {
                 anchors.fill: parent
                 hoverEnabled: true
@@ -268,11 +268,11 @@ StyledRect {
 
         StyledText {
             Layout.alignment: Qt.AlignHCenter
-            text: qsTr("Ketuk / geser dial — maks 60 mnt")
+            text: qsTr("Tap / drag the dial — max 60 min")
             color: Colours.palette.m3onSurfaceVariant
         }
 
-        // Preset cepat + tes notif
+        // Quick presets + notification test
         RowLayout {
             Layout.fillWidth: true
             spacing: Tokens.spacing.small
@@ -281,7 +281,7 @@ StyledRect {
                     { label: "5m", secs: 5 * 60 },
                     { label: "15m", secs: 15 * 60 },
                     { label: "25m", secs: 25 * 60 },
-                    { label: "tes 10s", secs: 10 }
+                    { label: "test 10s", secs: 10 }
                 ]
                 delegate: StyledRect {
                     required property var modelData
@@ -310,7 +310,7 @@ StyledRect {
             }
         }
 
-        // Kontrol Start / Pause / Reset
+        // Start / Pause / Reset controls
         RowLayout {
             Layout.fillWidth: true
             spacing: Tokens.spacing.small
