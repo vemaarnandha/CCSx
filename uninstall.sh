@@ -26,6 +26,7 @@ FILES=(
     "modules/custom/TodoTaskList.qml"
     "modules/custom/TodoWidget.qml"
     "modules/custom/DashboardIntegration.example.qml"
+    "modules/custom/qmldir"
 )
 
 log "caelestia-shell-customX uninstaller (DRY_RUN=$DRY_RUN, PURGE=$PURGE)"

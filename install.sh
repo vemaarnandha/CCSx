@@ -33,6 +33,7 @@ FILES=(
     "modules/custom/TodoTaskList.qml"
     "modules/custom/TodoWidget.qml"
     "modules/custom/DashboardIntegration.example.qml"
+    "modules/custom/qmldir"
 )
 # Seed data: copied ONLY when the target does not exist (never overwrite).
 # Empty by design: TimerService/TodoService auto-create their state files
