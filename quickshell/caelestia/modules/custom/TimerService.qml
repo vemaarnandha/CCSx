@@ -109,6 +109,66 @@ Singleton {
         root.setDuration(root.totalSeconds + delta);
     }
 
+    // ── Stopwatch (end4 pattern: wall-clock base + fast refresh) ──
+    // Restored paused after restart by design (a running stopwatch that
+    // silently keeps counting while the shell is dead would lie).
+    property bool swRunning: false
+    property double swElapsedMs: 0
+    property double swStartStamp: 0
+    property var swLaps: []
+
+    function swFmt(ms: int): string {
+        const totalCs = Math.floor(Math.max(0, ms) / 10);
+        const m = Math.floor(totalCs / 6000);
+        const s = Math.floor((totalCs % 6000) / 100);
+        const cs = totalCs % 100;
+        const pad = function(n: int): string { return n < 10 ? "0" + n : "" + n; };
+        return pad(m) + ":" + pad(s) + "." + pad(cs);
+    }
+
+    function swToggle(): void {
+        if (root.swRunning) {
+            root.swElapsedMs = Date.now() - root.swStartStamp;
+            root.swRunning = false;
+            swTick.stop();
+        } else {
+            if (root.swElapsedMs === 0)
+                root.swLaps = [];
+            root.swStartStamp = Date.now() - root.swElapsedMs;
+            root.swRunning = true;
+            swTick.start();
+        }
+        root.saveState();
+    }
+
+    function swReset(): void {
+        swTick.stop();
+        root.swRunning = false;
+        root.swElapsedMs = 0;
+        root.swLaps = [];
+        root.saveState();
+    }
+
+    function swLap(): void {
+        if (!root.swRunning)
+            return;
+        const laps = root.swLaps.slice(0);
+        laps.push(Date.now() - root.swStartStamp);
+        root.swLaps = laps;
+        root.saveState();
+    }
+
+    Timer {
+        id: swTick
+        interval: 50
+        repeat: true
+        running: false
+        onTriggered: {
+            if (root.swRunning)
+                root.swElapsedMs = Date.now() - root.swStartStamp;
+        }
+    }
+
     function start(): void {
         if (root.remainingSeconds <= 0)
             root.remainingSeconds = root.totalSeconds;
@@ -237,7 +297,9 @@ Singleton {
                 shortMinutes: root.shortMinutes,
                 longMinutes: root.longMinutes,
                 focusTask: root.focusTask,
-                pendingFocusCheck: root.pendingFocusCheck
+                pendingFocusCheck: root.pendingFocusCheck,
+                swElapsedMs: root.swElapsedMs,
+                swLaps: root.swLaps
             }));
         } catch (e) {
             console.warn("[TimerService] failed to save:", e);
@@ -272,6 +334,11 @@ Singleton {
                 root.focusTask = s.focusTask;
             if (typeof s.pendingFocusCheck === "boolean")
                 root.pendingFocusCheck = s.pendingFocusCheck;
+            // Stopwatch restores paused with elapsed + laps intact.
+            if (typeof s.swElapsedMs === "number")
+                root.swElapsedMs = Math.max(0, s.swElapsedMs);
+            if (Array.isArray(s.swLaps))
+                root.swLaps = s.swLaps.filter(x => typeof x === "number");
             if (typeof s.mode === "string" && (s.mode === "focus" || s.mode === "short" || s.mode === "long"))
                 root.mode = s.mode;
             if (typeof s.total === "number")
