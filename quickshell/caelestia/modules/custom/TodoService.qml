@@ -65,18 +65,15 @@ Singleton {
         store.reload();
     }
 
-    Component.onCompleted: refresh()
-
     FileView {
         id: store
         path: Paths.home + "/.config/quickshell/caelestia/todos.json"
         printErrors: false
         watchChanges: false
-        blockLoading: true
         onLoaded: {
             let arr = [];
             try {
-                const parsed = JSON.parse(store.text());
+                const parsed = JSON.parse(text());
                 if (Array.isArray(parsed))
                     arr = parsed;
             } catch (e) {
@@ -94,6 +91,10 @@ Singleton {
                 }
             }
             root.list = clean;
+        }
+        onLoadFailed: err => {
+            if (err === FileViewError.FileNotFound)
+                Qt.callLater(() => setText("[]"));
         }
     }
 }
