@@ -1,4 +1,4 @@
-// TimerService.qml — app-lifetime countdown engine behind the Focus tab timer.
+// TimerService.qml — app-lifetime pomodoro engine behind the Focus tab timer.
 //
 // Singleton: it outlives the dashboard Loader (which destroys widgets every
 // time the dashboard closes), so the countdown keeps ticking and its
@@ -6,6 +6,10 @@
 // Limit: the shell process itself must be running — nothing can notify
 // after logout / shell kill. State persists in timer.json and resumes
 // from wall-clock time after a full shell restart.
+//
+// Pomodoro model: focus sessions advance sessionsCompleted; every 4th focus
+// is followed by a long break, otherwise a short break. Breaks lead back
+// to focus. All durations (minutes) live here so any view stays consistent.
 
 pragma Singleton
 pragma ComponentBehavior: Bound
@@ -18,25 +22,58 @@ import qs.utils
 Singleton {
     id: root
 
+    // ── Mode & session state ──
+    // mode: "focus" | "short" | "long"
+    property string mode: "focus"
+    property int focusMinutes: 25
+    property int shortMinutes: 5
+    property int longMinutes: 15
+    property int sessionsCompleted: 0
+    readonly property int cycleLength: 4
+    readonly property int cycleDone: sessionsCompleted % cycleLength
+
     property int totalSeconds: 25 * 60
     property int remainingSeconds: 25 * 60
     property bool isRunning: false
     property bool isFinished: false
 
-    // Clamp range: 10 seconds (test chip) to 60 minutes (full dial).
     readonly property int minSeconds: 10
     readonly property int maxSeconds: 60 * 60
 
-    // Ratio 0..1 for the progress arc.
+    // Ratio 0..1 for the progress ring.
     readonly property real progress: totalSeconds > 0 ? remainingSeconds / totalSeconds : 0
-    // Knob angle from 12 o'clock, clockwise: 1 second = 0.1°.
-    readonly property real dialAngle: (remainingSeconds / 10) % 360
+
+    // Urgency ramp for the ring color (resolved to theme colors by the view):
+    // 0 = normal, 1 = low (<25% left), 2 = critical (<10% left or done).
+    readonly property int urgency: {
+        if (root.isFinished)
+            return 2;
+        const frac = root.totalSeconds > 0 ? root.remainingSeconds / root.totalSeconds : 1;
+        if (frac <= 0.1)
+            return 2;
+        if (frac <= 0.25)
+            return 1;
+        return 0;
+    }
 
     // Format MM:SS, e.g. 1500 → "25:00"
     function fmt(s: int): string {
         const m = Math.floor(Math.max(0, s) / 60);
         const sec = Math.max(0, s) % 60;
         return (m < 10 ? "0" + m : "" + m) + ":" + (sec < 10 ? "0" + sec : "" + sec);
+    }
+
+    function modeDuration(m: string): int {
+        if (m === "short")
+            return root.shortMinutes * 60;
+        if (m === "long")
+            return root.longMinutes * 60;
+        return root.focusMinutes * 60;
+    }
+
+    function setMode(m: string): void {
+        root.mode = m;
+        root.setDuration(root.modeDuration(m));
     }
 
     // Setting a duration stops a running timer on purpose:
@@ -51,13 +88,9 @@ Singleton {
         root.saveState();
     }
 
-    // Convert dial angle (0..360) → minutes (snap per minute, 0 = 60).
-    function setFromAngle(angleDeg: real): void {
-        let mins = Math.round(angleDeg / 6);
-        if (mins <= 0)
-            mins = 60;
-        mins = Math.min(60, Math.max(1, mins));
-        root.setDuration(mins * 60);
+    // Nudge the current total without switching mode (custom adjust chips).
+    function adjustSeconds(delta: int): void {
+        root.setDuration(root.totalSeconds + delta);
     }
 
     function start(): void {
@@ -83,15 +116,37 @@ Singleton {
         root.saveState();
     }
 
+    // Advance the pomodoro cycle when a session ends. silent=true skips the
+    // notification (stale on-disk state), but still advances + saves.
+    function finishSession(silent: bool): void {
+        countdown.stop();
+        root.isRunning = false;
+        if (root.mode === "focus") {
+            root.sessionsCompleted += 1;
+            const longBreak = root.sessionsCompleted % root.cycleLength === 0;
+            root.mode = longBreak ? "long" : "short";
+            root.totalSeconds = root.remainingSeconds = root.modeDuration(root.mode);
+            root.isFinished = true;
+            if (!silent)
+                root.notifyDone("Focus session done", longBreak ? "4 sessions — take a long break" : "Take a short break");
+        } else {
+            root.mode = "focus";
+            root.totalSeconds = root.remainingSeconds = root.modeDuration("focus");
+            root.isFinished = true;
+            if (!silent)
+                root.notifyDone("Break over", "Back to focus");
+        }
+        root.saveState();
+    }
+
     // Requires the `libnotify` package (Arch: `sudo pacman -S libnotify`).
     // Sent through notify-send so Caelestia's own NotificationDaemon
     // renders it as a native popup.
-    function notifyDone(): void {
+    function notifyDone(title: string, body: string): void {
         Quickshell.execDetached([
             "notify-send", "-a", "caelestia-shell",
             "-u", "critical",
-            "Timer done",
-            "Time is up — take a break"
+            title, body
         ]);
     }
 
@@ -116,7 +171,12 @@ Singleton {
                 total: root.totalSeconds,
                 remaining: root.remainingSeconds,
                 running: root.isRunning,
-                endTime: endTime
+                endTime: endTime,
+                mode: root.mode,
+                sessionsCompleted: root.sessionsCompleted,
+                focusMinutes: root.focusMinutes,
+                shortMinutes: root.shortMinutes,
+                longMinutes: root.longMinutes
             }));
         } catch (e) {
             console.warn("[TimerService] failed to save:", e);
@@ -137,6 +197,16 @@ Singleton {
             return;
         try {
             const s = JSON.parse(raw);
+            if (typeof s.focusMinutes === "number")
+                root.focusMinutes = s.focusMinutes;
+            if (typeof s.shortMinutes === "number")
+                root.shortMinutes = s.shortMinutes;
+            if (typeof s.longMinutes === "number")
+                root.longMinutes = s.longMinutes;
+            if (typeof s.sessionsCompleted === "number")
+                root.sessionsCompleted = Math.max(0, s.sessionsCompleted);
+            if (typeof s.mode === "string" && (s.mode === "focus" || s.mode === "short" || s.mode === "long"))
+                root.mode = s.mode;
             if (typeof s.total === "number")
                 root.totalSeconds = Math.min(root.maxSeconds, Math.max(root.minSeconds, s.total));
             if (typeof s.remaining === "number")
@@ -150,18 +220,9 @@ Singleton {
                     root.isRunning = true;
                     countdown.start();
                 } else {
-                    // Expired while away. Notify only if it just happened —
-                    // a stale timer.json (e.g. shell killed mid-run days ago)
-                    // must not pop a phantom notification on fresh start.
-                    // saveState() in both branches so a later restart does
-                    // not report the same expiry twice.
-                    const overdue = Date.now() - s.endTime;
-                    root.remainingSeconds = 0;
-                    root.isRunning = false;
-                    root.isFinished = true;
-                    root.saveState();
-                    if (overdue < 5 * 60 * 1000)
-                        root.notifyDone();
+                    // Expired while away. Only report if it just happened —
+                    // a stale timer.json must not pop a phantom notification.
+                    root.finishSession(Date.now() - s.endTime >= 5 * 60 * 1000);
                 }
             }
         } catch (e) {
@@ -177,13 +238,8 @@ Singleton {
         onTriggered: {
             if (root.remainingSeconds > 0)
                 root.remainingSeconds -= 1;
-            if (root.remainingSeconds <= 0) {
-                countdown.stop();
-                root.isRunning = false;
-                root.isFinished = true;
-                root.notifyDone();
-                root.saveState();
-            }
+            if (root.remainingSeconds <= 0)
+                root.finishSession(false);
         }
     }
 

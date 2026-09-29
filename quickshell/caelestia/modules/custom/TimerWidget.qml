@@ -1,15 +1,9 @@
-// TimerWidget.qml — Countdown with ROTARY DIAL for caelestia-shell + Hyprland
+// TimerWidget.qml — Pomodoro card (Opsi 1) for caelestia-shell + Hyprland
 // Live location: ~/.config/quickshell/caelestia/modules/custom/TimerWidget.qml
 //
-// Thin view over TimerService (modules/custom/TimerService.qml): all timer
-// state, the ticking engine, persistence and notifications live in the
-// app-lifetime singleton, so this widget can be destroyed/recreated by the
-// dashboard Loader without losing anything.
-//
-// Usage: TAP or DRAG (rotate) on the circle.
-//   Full circle = 60 minutes. Angle from 12 o'clock, clockwise:
-//   right (90°) = 15 min, bottom (180°) = 30 min, left (270°) = 45 min, top = 60 min.
-//   (Fully mouse-driven — no keyboard needed.)
+// Thin view over TimerService (modules/custom/TimerService.qml): session
+// logic, the ticking engine, persistence and notifications live in the
+// app-lifetime singleton. Fully mouse-driven — no keyboard needed.
 
 import QtQuick
 import QtQuick.Layouts
@@ -22,17 +16,55 @@ StyledRect {
 
     radius: Tokens.rounding.large
     color: Colours.layer(Colours.palette.m3surfaceContainerHigh, 2)
-    implicitWidth: 300
+    implicitWidth: 360
     implicitHeight: layout.implicitHeight + Tokens.padding.large * 2
 
-    // Angle from mouse position relative to the dial (0 = 12 o'clock, clockwise).
-    // Dead zone in the center (r < 28) → return the current angle (ignore).
-    function angleAt(mx: real, my: real): real {
-        const dx = mx - dial.width / 2;
-        const dy = my - dial.height / 2;
-        if (dx * dx + dy * dy < 28 * 28)
-            return TimerService.dialAngle;
-        return (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+    // Resolve the urgency level to theme colors (theme stays in the view).
+    function ringColor(): color {
+        if (TimerService.urgency === 2)
+            return Colours.palette.m3error;
+        if (TimerService.urgency === 1)
+            return Colours.palette.m3tertiary;
+        return Colours.palette.m3primary;
+    }
+
+    // Pill chip button, reused for modes + adjust steps.
+    // With sub text it renders two lines (name + detail); without, one line.
+    component Chip: StyledRect {
+        id: chip
+        required property string label
+        property string sub: ""
+        required property var onTap
+        required property bool highlighted
+        Layout.fillWidth: true
+        implicitHeight: chip.sub === "" ? 32 : 50
+        radius: Tokens.rounding.full
+        color: chip.highlighted
+            ? Colours.palette.m3primary
+            : Colours.layer(Colours.palette.m3surfaceContainerHighest, 1)
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 0
+            StyledText {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: chip.label
+                color: chip.highlighted ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+            }
+            StyledText {
+                visible: chip.sub !== ""
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: chip.sub
+                font: Tokens.font.label.small
+                color: chip.highlighted ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                opacity: 0.8
+            }
+        }
+        StateLayer {
+            anchors.fill: parent
+            onClicked: chip.onTap()
+            color: chip.highlighted ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+        }
     }
 
     ColumnLayout {
@@ -58,31 +90,29 @@ StyledRect {
                 Layout.fillWidth: true
             }
             StyledText {
-                text: TimerService.isRunning ? qsTr("running") : TimerService.isFinished ? qsTr("done") : qsTr("spin the dial")
+                text: TimerService.isRunning ? qsTr("running") : TimerService.isFinished ? qsTr("done") : qsTr("ready")
                 color: TimerService.isFinished ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
             }
         }
 
-        // ── Rotary dial ──
+        // ── Ring hero ──
         Item {
-            id: dial
             Layout.alignment: Qt.AlignHCenter
-            implicitWidth: 220
-            implicitHeight: 220
+            implicitWidth: 264
+            implicitHeight: 264
 
-            property real trackR: 92   // track circle radius
-            property real lineW: 14    // ring thickness
+            property real trackR: 112
+            property real lineW: 16
 
             Canvas {
                 id: ring
                 anchors.fill: parent
 
-                // Repaint on remaining-time / status changes.
                 Connections {
                     target: TimerService
-                    function onDialAngleChanged(): void { ring.requestPaint(); }
+                    function onProgressChanged(): void { ring.requestPaint(); }
+                    function onUrgencyChanged(): void { ring.requestPaint(); }
                     function onIsFinishedChanged(): void { ring.requestPaint(); }
-                    function onIsRunningChanged(): void { ring.requestPaint(); }
                 }
                 Component.onCompleted: requestPaint()
 
@@ -90,40 +120,16 @@ StyledRect {
                     const ctx = getContext("2d");
                     ctx.reset();
                     const cx = width / 2, cy = height / 2;
-                    const R = dial.trackR, lw = dial.lineW;
+                    const R = parent.trackR, lw = parent.lineW;
                     const track = Colours.palette.m3surfaceContainerHighest.toString();
-                    const prog = (TimerService.isFinished ? Colours.palette.m3error : Colours.palette.m3primary).toString();
-                    const tick = Colours.palette.m3onSurfaceVariant.toString();
+                    const prog = root.ringColor().toString();
 
-                    // Full track
+                    // Track
                     ctx.beginPath();
                     ctx.arc(cx, cy, R, 0, Math.PI * 2);
                     ctx.lineWidth = lw;
                     ctx.strokeStyle = track;
                     ctx.stroke();
-
-                    // Tick every 5 minutes (longer every 15 minutes)
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = tick;
-                    for (let m = 0; m < 60; m += 5) {
-                        const a = m * 6 * Math.PI / 180;
-                        const len = (m % 15 === 0) ? 12 : 7;
-                        const oR = R - lw / 2 - 2;
-                        ctx.beginPath();
-                        ctx.moveTo(cx + (oR - len) * Math.sin(a), cy - (oR - len) * Math.cos(a));
-                        ctx.lineTo(cx + oR * Math.sin(a), cy - oR * Math.cos(a));
-                        ctx.stroke();
-                    }
-
-                    // Labels 15 / 30 / 45 / 60
-                    ctx.fillStyle = tick;
-                    ctx.font = "12px sans-serif";
-                    ctx.textAlign = "center";
-                    ctx.textBaseline = "middle";
-                    ctx.fillText("60", cx, cy - R + 26);
-                    ctx.fillText("15", cx + R - 26, cy);
-                    ctx.fillText("30", cx, cy + R - 26);
-                    ctx.fillText("45", cx - R + 26, cy);
 
                     // Progress arc from 12 o'clock, clockwise
                     if (TimerService.progress > 0) {
@@ -134,93 +140,100 @@ StyledRect {
                         ctx.strokeStyle = prog;
                         ctx.stroke();
                     }
-
-                    // Knob at the remaining-time position
-                    const ka = TimerService.dialAngle * Math.PI / 180;
-                    const kx = cx + R * Math.sin(ka), ky = cy - R * Math.cos(ka);
-                    ctx.beginPath();
-                    ctx.arc(kx, ky, 10, 0, Math.PI * 2);
-                    ctx.fillStyle = prog;
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.arc(kx, ky, 4, 0, Math.PI * 2);
-                    ctx.fillStyle = Colours.palette.m3surfaceContainerHigh.toString();
-                    ctx.fill();
                 }
             }
 
-            // MM:SS in the dial center
+            // Time + mode in the center
             Column {
                 anchors.centerIn: parent
-                spacing: 0
+                spacing: Tokens.spacing.extraSmall
                 StyledText {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: TimerService.fmt(TimerService.remainingSeconds)
-                    font: Tokens.font.clock.size(34).weight(Font.DemiBold).build()
-                    color: TimerService.isFinished ? Colours.palette.m3error : Colours.palette.m3onSurface
+                    font: Tokens.font.clock.size(48).weight(Font.DemiBold).build()
+                    color: TimerService.urgency === 2 ? Colours.palette.m3error : Colours.palette.m3onSurface
                 }
                 StyledText {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: Math.round(TimerService.remainingSeconds / 60) + qsTr(" min")
+                    text: TimerService.mode === "short" ? qsTr("SHORT BREAK") : TimerService.mode === "long" ? qsTr("LONG BREAK") : qsTr("FOCUS")
+                    font: Tokens.font.label.small
                     color: Colours.palette.m3onSurfaceVariant
                 }
             }
+        }
 
-            // Set time via tap / drag (only while stopped).
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                enabled: !TimerService.isRunning
-                onPressed: mouse => TimerService.setFromAngle(root.angleAt(mouse.x, mouse.y))
-                onPositionChanged: mouse => {
-                    if (pressed)
-                        TimerService.setFromAngle(root.angleAt(mouse.x, mouse.y));
+        // ── Session dots ──
+        RowLayout {
+            Layout.alignment: Qt.AlignHCenter
+            spacing: Tokens.spacing.small
+
+            Repeater {
+                model: TimerService.cycleLength
+                delegate: StyledRect {
+                    required property int index
+                    implicitWidth: 12
+                    implicitHeight: 12
+                    radius: Tokens.rounding.full
+                    color: index < TimerService.cycleDone
+                        ? Colours.palette.m3primary
+                        : Colours.layer(Colours.palette.m3surfaceContainerHighest, 1)
                 }
+            }
+            StyledText {
+                text: qsTr("%1 of %2").arg(TimerService.cycleDone).arg(TimerService.cycleLength)
+                color: Colours.palette.m3onSurfaceVariant
             }
         }
 
-        StyledText {
-            Layout.alignment: Qt.AlignHCenter
-            text: qsTr("Tap / drag the dial — max 60 min")
-            color: Colours.palette.m3onSurfaceVariant
-        }
-
-        // Quick presets + notification test
+        // ── Mode chips ──
         RowLayout {
             Layout.fillWidth: true
             spacing: Tokens.spacing.small
-            Repeater {
-                model: [
-                    { label: "5m", secs: 5 * 60 },
-                    { label: "15m", secs: 15 * 60 },
-                    { label: "25m", secs: 25 * 60 },
-                    { label: "test 10s", secs: 10 }
-                ]
-                delegate: StyledRect {
-                    required property var modelData
-                    Layout.fillWidth: true
-                    implicitHeight: 32
-                    radius: Tokens.rounding.full
-                    color: TimerService.totalSeconds === modelData.secs
-                        ? Colours.palette.m3primary
-                        : Colours.layer(Colours.palette.m3surfaceContainerHighest, 1)
 
-                    StyledText {
-                        anchors.centerIn: parent
-                        text: parent.modelData.label
-                        color: TimerService.totalSeconds === parent.modelData.secs
-                            ? Colours.palette.m3onPrimary
-                            : Colours.palette.m3onSurface
-                    }
-                    StateLayer {
-                        anchors.fill: parent
-                        onClicked: TimerService.setDuration(parent.modelData.secs)
-                        color: TimerService.totalSeconds === parent.modelData.secs
-                            ? Colours.palette.m3onPrimary
-                            : Colours.palette.m3onSurface
-                    }
-                }
+            Chip {
+                label: qsTr("Focus")
+                sub: qsTr("%1 min").arg(TimerService.focusMinutes)
+                highlighted: TimerService.mode === "focus"
+                onTap: () => TimerService.setMode("focus")
+            }
+            Chip {
+                label: qsTr("Short")
+                sub: qsTr("%1 min").arg(TimerService.shortMinutes)
+                highlighted: TimerService.mode === "short"
+                onTap: () => TimerService.setMode("short")
+            }
+            Chip {
+                label: qsTr("Long")
+                sub: qsTr("%1 min").arg(TimerService.longMinutes)
+                highlighted: TimerService.mode === "long"
+                onTap: () => TimerService.setMode("long")
+            }
+        }
+
+        // ── Custom adjust (minutes) ──
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Tokens.spacing.small
+
+            Chip {
+                label: "−5m"
+                highlighted: false
+                onTap: () => TimerService.adjustSeconds(-5 * 60)
+            }
+            Chip {
+                label: "−1m"
+                highlighted: false
+                onTap: () => TimerService.adjustSeconds(-60)
+            }
+            Chip {
+                label: "+1m"
+                highlighted: false
+                onTap: () => TimerService.adjustSeconds(60)
+            }
+            Chip {
+                label: "+5m"
+                highlighted: false
+                onTap: () => TimerService.adjustSeconds(5 * 60)
             }
         }
 
@@ -231,7 +244,7 @@ StyledRect {
 
             StyledRect {
                 Layout.fillWidth: true
-                implicitHeight: 38
+                implicitHeight: 40
                 radius: Tokens.rounding.full
                 color: Colours.palette.m3primary
                 StyledText {
@@ -253,7 +266,7 @@ StyledRect {
 
             StyledRect {
                 Layout.fillWidth: true
-                implicitHeight: 38
+                implicitHeight: 40
                 radius: Tokens.rounding.full
                 color: Colours.layer(Colours.palette.m3surfaceContainerHighest, 1)
                 StyledText {
