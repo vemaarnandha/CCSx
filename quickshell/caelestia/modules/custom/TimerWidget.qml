@@ -218,22 +218,6 @@ StyledRect {
                         color: Colours.palette.m3onSurfaceVariant
                     }
                 }
-
-                // Cycle badge (current cycle number, 1-based).
-                StyledRect {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.margins: Tokens.spacing.small
-                    implicitWidth: 36
-                    implicitHeight: 36
-                    radius: Tokens.rounding.full
-                    color: Colours.palette.m3secondaryContainer
-                    StyledText {
-                        anchors.centerIn: parent
-                        text: TimerService.cycleDone + 1
-                        color: Colours.palette.m3onSecondaryContainer
-                    }
-                }
             }
 
             // Session dots
