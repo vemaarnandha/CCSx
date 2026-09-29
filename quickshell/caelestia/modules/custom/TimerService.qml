@@ -36,6 +36,12 @@ Singleton {
     property int remainingSeconds: 25 * 60
     property bool isRunning: false
     property bool isFinished: false
+    property bool soundEnabled: true
+
+    function toggleSound(): void {
+        root.soundEnabled = !root.soundEnabled;
+        root.saveState();
+    }
 
     readonly property int minSeconds: 10
     readonly property int maxSeconds: 60 * 60
@@ -139,7 +145,8 @@ Singleton {
         root.saveState();
     }
 
-    // Requires the `libnotify` package (Arch: `sudo pacman -S libnotify`).
+    // Requires the `libnotify` package (Arch: `sudo pacman -S libnotify`)
+    // for the popup and a PipeWire/PulseAudio player (`paplay`) for the alarm.
     // Sent through notify-send so Caelestia's own NotificationDaemon
     // renders it as a native popup.
     function notifyDone(title: string, body: string): void {
@@ -148,6 +155,11 @@ Singleton {
             "-u", "critical",
             title, body
         ]);
+        if (root.soundEnabled)
+            Quickshell.execDetached([
+                "paplay",
+                "/usr/share/sounds/freedesktop/stereo/complete.oga"
+            ]);
     }
 
     FileView {
@@ -174,6 +186,7 @@ Singleton {
                 endTime: endTime,
                 mode: root.mode,
                 sessionsCompleted: root.sessionsCompleted,
+                soundEnabled: root.soundEnabled,
                 focusMinutes: root.focusMinutes,
                 shortMinutes: root.shortMinutes,
                 longMinutes: root.longMinutes
@@ -205,6 +218,8 @@ Singleton {
                 root.longMinutes = s.longMinutes;
             if (typeof s.sessionsCompleted === "number")
                 root.sessionsCompleted = Math.max(0, s.sessionsCompleted);
+            if (typeof s.soundEnabled === "boolean")
+                root.soundEnabled = s.soundEnabled;
             if (typeof s.mode === "string" && (s.mode === "focus" || s.mode === "short" || s.mode === "long"))
                 root.mode = s.mode;
             if (typeof s.total === "number")

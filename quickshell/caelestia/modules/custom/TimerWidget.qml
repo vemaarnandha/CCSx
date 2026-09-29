@@ -93,6 +93,17 @@ StyledRect {
                 text: TimerService.isRunning ? qsTr("running") : TimerService.isFinished ? qsTr("done") : qsTr("ready")
                 color: TimerService.isFinished ? Colours.palette.m3error : Colours.palette.m3onSurfaceVariant
             }
+            // Alarm mute toggle (persisted in timer.json)
+            MaterialIcon {
+                text: TimerService.soundEnabled ? "volume_up" : "volume_off"
+                color: TimerService.soundEnabled ? Colours.palette.m3primary : Colours.palette.m3onSurfaceVariant
+                fontStyle: Tokens.font.icon.small
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: TimerService.toggleSound()
+                }
+            }
         }
 
         // ── Ring hero ──
