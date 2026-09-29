@@ -1,1 +1,6 @@
 .omo/
+# Runtime user data (personal tasks + timer state) — never commit.
+quickshell/caelestia/todos.json
+quickshell/caelestia/timer.json
+# Local patch backups created by install.sh.
+*.bak
