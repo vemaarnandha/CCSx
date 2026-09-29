@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.1] - 2026-09-30
+
+### Fixed
+- Tasks card: add dialog actually adds tasks (missing dialog id broke
+  both the Add button and Enter).
+- Tasks card: no more `map`/`length` of undefined warnings on first
+  frames before the service loads.
+- TodoService: non-blocking async load with missing-file creation, so
+  the singleton always resolves with its functions available.
+- Ship `modules/custom/qmldir` declaring both services as singletons
+  (the engine's generated listing missed TodoService, breaking all
+  service calls) + install/uninstall overlay entries.
+- Timer card: remove redundant cycle badge (session dots + `x of 4`
+  already show the cycle).
+
 ## [0.1.0] - 2026-09-29
 
 First public snapshot.

@@ -12,7 +12,7 @@ together in a new **Focus** dashboard tab.
   dots and 4-cycle tracking, urgency ramp (primary → tertiary → error),
   custom ±1/±5 min adjust, Start/Pause/Resume + Reset, completion chime
   (`complete.oga` via `paplay`) with persisted mute toggle, **Stopwatch**
-  tab with laps, cycle badge on the ring.
+  tab with laps.
 - **Tasks card** — Unfinished/Done tabs, FAB + add dialog (Enter/Esc),
   per-task check + delete, Clear completed, JSON persistence.
 - **App-lifetime services** — `TimerService` / `TodoService` singletons keep
