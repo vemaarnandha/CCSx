@@ -27,6 +27,9 @@ DRY_RUN="${DRY_RUN:-0}"
 # ── Data: edit here when adding features ─────────────────────────────
 # Project files overlaid onto the user shadow, relative to SRC/DEST.
 FILES=(
+    "modules/custom/EventService.qml"
+    "modules/custom/EventPopover.qml"
+    "modules/custom/CalendarPatch.example.qml"
     "modules/custom/TimerService.qml"
     "modules/custom/TimerWidget.qml"
     "modules/custom/TodoService.qml"
@@ -36,8 +39,9 @@ FILES=(
     "modules/custom/qmldir"
 )
 # Seed data: copied ONLY when the target does not exist (never overwrite).
-# Empty by design: TimerService/TodoService auto-create their state files
-# (timer.json/todos.json) on first save, so no seeds are required.
+# Empty by design: TimerService/TodoService/EventService auto-create their
+# state files (timer.json/todos.json/events.json) on first save, so no
+# seeds are required.
 SEEDS=(
 )
 # Required commands (checked, never auto-installed).
@@ -119,12 +123,12 @@ overlay_files() {
 apply_patches() {
     log "applying source patches (idempotent)"
     # Keep pristine copies once, so uninstall.sh can restore them.
-    for f in "modules/dashboard/Content.qml" "modules/drawers/ContentWindow.qml"; do
+    for f in "modules/dashboard/Content.qml" "modules/drawers/ContentWindow.qml" "modules/dashboard/dash/Calendar.qml"; do
         if [ ! -f "$DEST/$f.bak" ]; then
             run cp "$DEST/$f" "$DEST/$f.bak"
         fi
     done
-    if dry "python3 patch Content.qml + ContentWindow.qml"; then
+    if dry "python3 patch Content.qml + ContentWindow.qml + Calendar.qml"; then
         return 0
     fi
     python3 - "$DEST" <<'PYEOF'
@@ -213,6 +217,116 @@ patch(window,
       'screenState.dashboard || screenState.launcher',
       'WlrLayershell.keyboardFocus: screenState.launcher || screenState.session ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None',
       'WlrLayershell.keyboardFocus: screenState.dashboard || screenState.launcher || screenState.session ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None')
+
+# --- Patch 5: Calendar events import ---------------------------------
+calendar = dest + "/modules/dashboard/dash/Calendar.qml"
+patch(calendar,
+      'qs.modules.custom',
+      'import qs.services\n',
+      'import qs.services\nimport qs.modules.custom\n')
+
+# --- Patch 5b: Calendar selected date state ---------------------------
+patch(calendar,
+      'property string selectedKey',
+      '''    property date currentDate: screenState.dashboardDate
+''',
+      '''    property date currentDate: screenState.dashboardDate
+    property string selectedKey: ""
+''')
+
+# --- Patch 5c: close popover on month change ---------------------------
+patch(calendar,
+      'onCurrentDateChanged',
+      '''    property string selectedKey: ""
+''',
+      '''    property string selectedKey: ""
+    onCurrentDateChanged: root.selectedKey = ""
+''')
+
+# --- Patch 6: Calendar event dot + click + popover -------------------
+# Contract with modules/custom: EventService.hasEvent(key)/countOn(key)
+# take "YYYY-MM-DD", EventPopover { dateKey/show/onClose }.
+# Matches CalendarPatch.example.qml + EventPopover.qml APIs.
+patch(calendar,
+      'EventService.hasEvent',
+      '''                delegate: Item {
+                    id: dayItem
+
+                    required property var model
+
+                    implicitWidth: implicitHeight
+                    implicitHeight: text.implicitHeight + Tokens.padding.small
+''',
+      '''                delegate: Item {
+                    id: dayItem
+
+                    required property var model
+                    readonly property string dateKey: Qt.formatDate(dayItem.model.date, "yyyy-MM-dd")
+
+                    implicitWidth: implicitHeight
+                    implicitHeight: text.implicitHeight + Tokens.padding.small + 7
+''')
+
+patch(calendar,
+      'eventDot',
+      '''                        opacity: dayItem.model.today || dayItem.model.month === grid.month ? 1 : 0.4
+                        font: Tokens.font.body.small
+                    }
+                }
+            }
+''',
+      '''                        opacity: dayItem.model.today || dayItem.model.month === grid.month ? 1 : 0.4
+                        font: Tokens.font.body.small
+                    }
+
+                    Rectangle {
+                        id: eventDot
+                        anchors.top: text.bottom
+                        anchors.topMargin: 1
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: 5
+                        height: 5
+                        radius: width / 2
+                        color: Colours.palette.m3primary
+                        visible: EventService.hasEvent(dayItem.dateKey)
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.selectedKey = dayItem.dateKey
+                    }
+                }
+            }
+''')
+
+patch(calendar,
+      'id: eventPopover',
+      '''                    source: grid
+                    sourceColor: Colours.palette.m3onSurface
+                    colorizationColor: Colours.palette.m3onPrimary
+                }
+            }
+        }
+    }
+}''',
+      '''                    source: grid
+                    sourceColor: Colours.palette.m3onSurface
+                    colorizationColor: Colours.palette.m3onPrimary
+                }
+            }
+        }
+    }
+
+    EventPopover {
+        id: eventPopover
+        anchors.fill: parent
+        dateKey: root.selectedKey
+        show: root.selectedKey !== ""
+        onClose: root.selectedKey = ""
+    }
+}''')
 PYEOF
 }
 
@@ -225,6 +339,7 @@ verify() {
     done
     grep -q 'component: focusComponent' "$DEST/modules/dashboard/Content.qml" || { echo "[install] MISMATCH: Focus tab entry"; ok=0; }
     grep -q 'screenState.dashboard || screenState.launcher' "$DEST/modules/drawers/ContentWindow.qml" || { echo "[install] MISMATCH: keyboard focus patch"; ok=0; }
+    grep -q 'id: eventPopover' "$DEST/modules/dashboard/dash/Calendar.qml" || { echo "[install] MISMATCH: calendar events patch"; ok=0; }
     [ "$ok" = "1" ] && log "all files verified OK" || fail "verification failed"
 }
 

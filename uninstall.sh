@@ -5,7 +5,7 @@
 # Removes this project's overlay files, restores *.bak files created for
 # patched upstream files when present, and optionally restores the newest
 # ~/.config/quickshell backup. Never deletes user data (todos.json,
-# timer.json) unless --purge-data is passed.
+# timer.json, events.json) unless --purge-data is passed.
 #
 set -euo pipefail
 
@@ -20,6 +20,9 @@ dry() { if [ "$DRY_RUN" = "1" ]; then printf '[dry-run] %s\n' "$*"; return 0; fi
 run() { if dry "$*"; then return 0; fi; "$@"; }
 
 FILES=(
+    "modules/custom/EventService.qml"
+    "modules/custom/EventPopover.qml"
+    "modules/custom/CalendarPatch.example.qml"
     "modules/custom/TimerService.qml"
     "modules/custom/TimerWidget.qml"
     "modules/custom/TodoService.qml"
@@ -40,7 +43,8 @@ done
 
 # Restore patched upstream files from .bak when available.
 for bak in "$DEST/modules/dashboard/Content.qml.bak" \
-           "$DEST/modules/drawers/ContentWindow.qml.bak"; do
+           "$DEST/modules/drawers/ContentWindow.qml.bak" \
+           "$DEST/modules/dashboard/dash/Calendar.qml.bak"; do
     if [ -f "$bak" ]; then
         log "restore ${bak%.bak}"
         run cp "$bak" "${bak%.bak}"
@@ -48,10 +52,10 @@ for bak in "$DEST/modules/dashboard/Content.qml.bak" \
 done
 
 if [ "$PURGE" = "1" ]; then
-    log "purging user data (todos.json, timer.json)"
-    run rm -f "$DEST/todos.json" "$DEST/timer.json"
+    log "purging user data (todos.json, timer.json, events.json)"
+    run rm -f "$DEST/todos.json" "$DEST/timer.json" "$DEST/events.json"
 else
-    log "keeping user data (pass --purge-data to delete todos.json/timer.json)"
+    log "keeping user data (pass --purge-data to delete todos.json/timer.json/events.json)"
 fi
 
 if [ -d "$BACKUP_ROOT" ]; then
