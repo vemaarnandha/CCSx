@@ -1,6 +1,8 @@
 module qs.modules.custom
 singleton TimerService 1.0 TimerService.qml
 singleton TodoService 1.0 TodoService.qml
+singleton EventService 1.0 EventService.qml
+EventPopover 1.0 EventPopover.qml
 TimerWidget 1.0 TimerWidget.qml
 TodoTaskList 1.0 TodoTaskList.qml
 TodoWidget 1.0 TodoWidget.qml
