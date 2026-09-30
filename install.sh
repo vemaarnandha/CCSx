@@ -327,6 +327,17 @@ patch(calendar,
         onClose: root.selectedKey = ""
     }
 }''')
+
+# --- Patch 6b: popover frosted-backdrop source -------------------------
+patch(calendar,
+      'blurSource: inner',
+      '''    EventPopover {
+        id: eventPopover
+''',
+      '''    EventPopover {
+        id: eventPopover
+        blurSource: inner
+''')
 PYEOF
 }
 
