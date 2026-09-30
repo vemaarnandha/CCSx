@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Calendar events: dot markers on days with events, click a date to
+  add/view events in a dialog (today and future dates), local
+  events.json persistence with self-healing load.
+- Installer: overlay EventService.qml/EventPopover.qml, idempotent
+  Calendar.qml patch (import, day dot + click, event popover) with
+  verify marker; uninstaller restores Calendar.qml and purges
+  events.json with --purge-data.
+
 ## [0.1.1] - 2026-09-30
 
 ### Fixed

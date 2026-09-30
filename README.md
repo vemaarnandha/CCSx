@@ -15,7 +15,11 @@ together in a new **Focus** dashboard tab.
   tab with laps.
 - **Tasks card** — Unfinished/Done tabs, FAB + add dialog (Enter/Esc),
   per-task check + delete, Clear completed, JSON persistence.
-- **App-lifetime services** — `TimerService` / `TodoService` singletons keep
+- **Calendar events** — dot markers on days with events, click a date to
+  add/view events in a dialog (today and future dates), local
+  `events.json` persistence.
+- **App-lifetime services** — `TimerService` / `TodoService` /
+  `EventService` singletons keep
   ticking and notifying with the dashboard closed; state resumes from
   wall-clock time after a shell restart.
 - **Native look** — Caelestia M3 tokens only (`Colours`, `Tokens`,
@@ -51,8 +55,9 @@ DRY_RUN=1 ./install.sh
 
 The installer backs up `~/.config/quickshell` (timestamped, keeps 3),
 creates the user shadow copy of the system shell (so upstream updates
-never overwrite your widgets), overlays the custom modules, applies two
-minimal upstream patches (Focus tab entry, dashboard keyboard focus),
+never overwrite your widgets), overlays the custom modules, applies
+minimal upstream patches (Focus tab entry, dashboard keyboard focus,
+calendar event dot + click + popover),
 verifies, and reloads the shell. Re-running is safe (idempotent).
 
 ## Usage
@@ -63,6 +68,8 @@ verifies, and reloads the shell. Re-running is safe (idempotent).
 - Stopwatch tab: Start/Pause, Lap, Reset. Laps and elapsed time persist.
 - Tasks: `+` FAB or type + Enter, Unfinished/Done tabs, click to
   check/uncheck, hover for delete. Speaker icon mutes the timer chime.
+- Calendar: hover top-center → dashboard → click a date to add/view
+  events; days with events show a dot.
 - The timer keeps running and notifies with the dashboard closed
   (the shell process itself must be running).
 
@@ -70,7 +77,7 @@ verifies, and reloads the shell. Re-running is safe (idempotent).
 
 ```bash
 ./uninstall.sh            # removes widgets, restores patched files
-./uninstall.sh --purge-data  # also deletes todos.json / timer.json
+./uninstall.sh --purge-data  # also deletes todos.json / timer.json / events.json
 ```
 
 ## Known limitations
@@ -86,7 +93,7 @@ verifies, and reloads the shell. Re-running is safe (idempotent).
 
 ## Compatibility
 
-If upstream `Content.qml` / `ContentWindow.qml` drift, `install.sh` prints
+If upstream `Content.qml` / `ContentWindow.qml` / `Calendar.qml` drift, `install.sh` prints
 `WARN: anchor not found` and skips that patch instead of corrupting files.
 Check `CHANGELOG.md` for the tested snapshot per release.
 
