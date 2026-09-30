@@ -21,6 +21,7 @@
 
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Effects
 import Caelestia.Config
 import qs.components
 import qs.components.controls
@@ -32,6 +33,10 @@ Item {
     // "YYYY-MM-DD" key of the selected day. Empty means "no selection".
     property string dateKey: ""
     property bool show: false
+    // Live calendar content beneath, captured + blurred as the dialog
+    // backdrop. Wired by the installer patch (blurSource: inner); null
+    // means "tint only".
+    property Item blurSource
     // false = LIST phase, true = FORM phase.
     property bool showForm: false
 
@@ -136,13 +141,37 @@ Item {
         root.showForm = false;
     }
 
-    // Scrim (click to dismiss, resets to LIST). Kept near-opaque so the
-    // busy calendar grid behind never bleeds through the dialog.
+    // Frosted backdrop: live snapshot of the calendar beneath, blurred
+    // (same MultiEffect pattern as AnimatedLogo/DesktopClock), so the
+    // dialog feels like glass instead of a black veil. Hidden with the
+    // dialog so it costs nothing while closed. `inner` never contains
+    // this popover, so capturing it cannot recurse.
+    Item {
+        id: backdrop
+        anchors.fill: parent
+        visible: root.show && root.blurSource !== null
+        layer.enabled: true
+        layer.effect: MultiEffect {
+            blurEnabled: true
+            blur: 0.8
+            blurMax: 48
+        }
+        ShaderEffectSource {
+            anchors.fill: parent
+            sourceItem: root.blurSource
+            live: root.show
+            hideSource: false
+        }
+    }
+
+    // Theme tint over the blur: dims just enough to read, follows the
+    // scheme (no black). Also catches outside clicks to dismiss.
     StyledRect {
         anchors.fill: parent
+        visible: root.show
         radius: 0
-        color: Colours.palette.m3scrim
-        opacity: 0.85
+        color: Colours.palette.m3surfaceContainer
+        opacity: 0.45
         MouseArea {
             anchors.fill: parent
             hoverEnabled: true
