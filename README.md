@@ -18,6 +18,14 @@ together in a new **Focus** dashboard tab.
 - **Calendar events** — dot markers on days with events, click a date to
   add/view events in a dialog (today and future dates), local
   `events.json` persistence.
+- **Desktop clock** — minimalist day / date / `- time -` restyle of the
+  upstream desktop clock (existing scale, background/blur/shadow and
+  12h/24h settings still apply). The day name uses Lincoln Electric Over
+  (commercial, Canada Type): install the OTF into `~/.local/share/fonts`
+  and the installer verifies it via `fc-list`. Date and time use the
+  readable UI font from your shell config.
+
+![Desktop clock](docs/screenshots/clock.png)
 - **App-lifetime services** — `TimerService` / `TodoService` /
   `EventService` singletons keep
   ticking and notifying with the dashboard closed; state resumes from

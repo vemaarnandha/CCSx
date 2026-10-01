@@ -30,6 +30,7 @@ FILES=(
     "modules/custom/TodoWidget.qml"
     "modules/custom/DashboardIntegration.example.qml"
     "modules/custom/qmldir"
+    "modules/background/DesktopClock.qml"
 )
 
 log "caelestia-shell-customX uninstaller (DRY_RUN=$DRY_RUN, PURGE=$PURGE)"
@@ -44,7 +45,8 @@ done
 # Restore patched upstream files from .bak when available.
 for bak in "$DEST/modules/dashboard/Content.qml.bak" \
            "$DEST/modules/drawers/ContentWindow.qml.bak" \
-           "$DEST/modules/dashboard/dash/Calendar.qml.bak"; do
+           "$DEST/modules/dashboard/dash/Calendar.qml.bak" \
+           "$DEST/modules/background/DesktopClock.qml.bak"; do
     if [ -f "$bak" ]; then
         log "restore ${bak%.bak}"
         run cp "$bak" "${bak%.bak}"

@@ -37,6 +37,7 @@ FILES=(
     "modules/custom/TodoWidget.qml"
     "modules/custom/DashboardIntegration.example.qml"
     "modules/custom/qmldir"
+    "modules/background/DesktopClock.qml"
 )
 # Seed data: copied ONLY when the target does not exist (never overwrite).
 # Empty by design: TimerService/TodoService/EventService auto-create their
@@ -68,6 +69,9 @@ check_deps() {
     done
     if ! font_present; then
         printf '[install] WARN: Material Symbols font not detected (icons may show as boxes)\n'
+    fi
+    if [ -z "$(fc-list 2>/dev/null | grep -i 'lincoln electric' || true)" ]; then
+        printf '[install] WARN: Lincoln Electric font not detected (desktop clock falls back to system font)\n'
     fi
     if [ "$missing" = "1" ]; then
         printf '[install] Install the missing tools for your distro, then re-run.\n'
@@ -123,7 +127,7 @@ overlay_files() {
 apply_patches() {
     log "applying source patches (idempotent)"
     # Keep pristine copies once, so uninstall.sh can restore them.
-    for f in "modules/dashboard/Content.qml" "modules/drawers/ContentWindow.qml" "modules/dashboard/dash/Calendar.qml"; do
+    for f in "modules/dashboard/Content.qml" "modules/drawers/ContentWindow.qml" "modules/dashboard/dash/Calendar.qml" "modules/background/DesktopClock.qml"; do
         if [ ! -f "$DEST/$f.bak" ]; then
             run cp "$DEST/$f" "$DEST/$f.bak"
         fi
