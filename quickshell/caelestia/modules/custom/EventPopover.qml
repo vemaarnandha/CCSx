@@ -21,7 +21,6 @@
 
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Effects
 import Caelestia.Config
 import qs.components
 import qs.components.controls
@@ -33,10 +32,6 @@ Item {
     // "YYYY-MM-DD" key of the selected day. Empty means "no selection".
     property string dateKey: ""
     property bool show: false
-    // Live calendar content beneath, captured + blurred as the dialog
-    // backdrop. Wired by the installer patch (blurSource: inner); null
-    // means "tint only".
-    property Item blurSource
     // false = LIST phase, true = FORM phase.
     property bool showForm: false
 
@@ -141,47 +136,19 @@ Item {
         root.showForm = false;
     }
 
-    // Frosted backdrop: live snapshot of the calendar beneath, blurred
-    // (same MultiEffect pattern as AnimatedLogo/DesktopClock), so the
-    // dialog feels like glass instead of a black veil. Hidden with the
-    // dialog so it costs nothing while closed. `inner` never contains
-    // this popover, so capturing it cannot recurse.
-    Item {
-        id: backdrop
+    // Outside-click dismiss: fully transparent (no black veil — the
+    // frosted card below carries the dialog visuals on its own).
+    MouseArea {
         anchors.fill: parent
-        visible: root.show && root.blurSource !== null
-        layer.enabled: true
-        layer.effect: MultiEffect {
-            blurEnabled: true
-            blur: 0.8
-            blurMax: 48
-        }
-        ShaderEffectSource {
-            anchors.fill: parent
-            sourceItem: root.blurSource
-            live: root.show
-            hideSource: false
-        }
+        hoverEnabled: true
+        onClicked: root.resetAndClose()
     }
 
-    // Theme tint over the blur: dims just enough to read, follows the
-    // scheme (no black). Also catches outside clicks to dismiss.
-    StyledRect {
-        anchors.fill: parent
-        visible: root.show
-        radius: 0
-        color: Colours.palette.m3surfaceContainer
-        opacity: 0.45
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            onClicked: root.resetAndClose()
-        }
-    }
-
-    // Centered card. Same fill as the other Dash cards
-    // (tPalette.m3surfaceContainer) + outline so it stays distinct on
-    // glassy themes without looking foreign.
+    // Centered card. Dark theme surface at 0.92 (DesktopClock-style
+    // panel: near-opaque for crisp text, faintly translucent so it sits
+    // in the theme instead of a hardcoded black slab). Rounded corners
+    // kept, no border; opacity lives in the color so children stay full
+    // opacity and text never dims with the panel.
     StyledRect {
         id: card
 
@@ -192,9 +159,7 @@ Item {
         anchors.rightMargin: Tokens.padding.large
         implicitHeight: cardLayout.implicitHeight + Tokens.padding.large * 2
         radius: Tokens.rounding.large
-        color: Colours.tPalette.m3surfaceContainer
-        border.width: 1
-        border.color: Colours.palette.m3outlineVariant
+        color: Qt.alpha(Colours.palette.m3surface, 0.92)
 
         // Card click must not fall through to the scrim.
         MouseArea {
@@ -359,6 +324,17 @@ Item {
                     implicitHeight: 44
                     radius: Tokens.rounding.full
                     color: Colours.palette.m3primary
+                    // Opaque backing plate (first child: above pill fill,
+                    // below label): guarantees this surface occludes calendar
+                    // content beneath it. Same token as the pill (m3primary,
+                    // the fluid theme accent) — stacking an identical hue
+                    // keeps the button blue instead of shifting it gray.
+                    // No layout/size impact (plain child, fills pill).
+                    StyledRect {
+                        anchors.fill: parent
+                        radius: Tokens.rounding.full
+                        color: Colours.palette.m3primary
+                    }
                     RowLayout {
                         anchors.centerIn: parent
                         spacing: Tokens.spacing.extraSmall
@@ -553,6 +529,13 @@ Item {
                         }
                     }
                     // Save pill (disabled for past dates / empty title).
+                    // Structure: opaque shell (occludes content beneath in
+                    // all states) + dimmable inner (fill + label fade when
+                    // disabled). Shell wears m3primary like Add's plate so
+                    // the action color stays fluid-blue in every state.
+                    // The dim must NOT cover the shell, hence no opacity
+                    // on the root and no anchored siblings (layouts warn
+                    // on those) — only plain nested children.
                     StyledRect {
                         id: savePill
                         Layout.fillWidth: true
@@ -560,18 +543,26 @@ Item {
                         implicitWidth: 84
                         implicitHeight: 40
                         radius: Tokens.rounding.full
-                        color: savePill.canSave ? Colours.palette.m3primary : Colours.layer(Colours.palette.m3surfaceContainerHighest, 1)
-                        opacity: savePill.canSave ? 1.0 : 0.6
+                        color: Colours.palette.m3primary
                         property bool canSave: !root.isPast && titleForm.text.trim().length > 0
-                        StyledText {
-                            anchors.centerIn: parent
-                            text: qsTr("Save")
-                            color: savePill.canSave ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
-                        }
-                        StateLayer {
+                        Item {
                             anchors.fill: parent
-                            onClicked: root.submitForm()
-                            color: savePill.canSave ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+                            opacity: savePill.canSave ? 1.0 : 0.6
+                            StyledRect {
+                                anchors.fill: parent
+                                radius: Tokens.rounding.full
+                                color: savePill.canSave ? Colours.palette.m3primary : Colours.layer(Colours.palette.m3surfaceContainerHighest, 1)
+                            }
+                            StyledText {
+                                anchors.centerIn: parent
+                                text: qsTr("Save")
+                                color: savePill.canSave ? Colours.palette.m3onPrimary : Colours.palette.m3onSurfaceVariant
+                            }
+                            StateLayer {
+                                anchors.fill: parent
+                                onClicked: root.submitForm()
+                                color: savePill.canSave ? Colours.palette.m3onPrimary : Colours.palette.m3onSurface
+                            }
                         }
                     }
                 }
