@@ -14,8 +14,12 @@
   warns when Lincoln Electric is missing. Uninstall restores the
   pristine upstream file from `.bak`.
 - Calendar events: dot markers on days with events, click a date to
-  add/view events in a dialog (today and future dates), local
-  events.json persistence with self-healing load.
+  open a two-phase dialog — event list with empty state and Add event
+  button, add form with 12-hour steppers (hour 1–12, minute step 5,
+  wrap-around carry both ways) + AM/PM toggle, per-event check/delete.
+  Today and future dates only, local events.json persistence with
+  self-healing load. Flat theme-surface dialog (no backdrop blur:
+  live-blur proved ineffective on this GPU).
 - Installer: overlay EventService.qml/EventPopover.qml, idempotent
   Calendar.qml patch (import, day dot + click, event popover) with
   verify marker; uninstaller restores Calendar.qml and purges

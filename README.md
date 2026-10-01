@@ -16,8 +16,14 @@ together in a new **Focus** dashboard tab.
 - **Tasks card** — Unfinished/Done tabs, FAB + add dialog (Enter/Esc),
   per-task check + delete, Clear completed, JSON persistence.
 - **Calendar events** — dot markers on days with events, click a date to
-  add/view events in a dialog (today and future dates), local
-  `events.json` persistence.
+  open a two-phase dialog: event list (with empty state and an
+  **Add event** button) and an add form with 12-hour steppers (hour 1–12,
+  minute step 5 with wrap-around carry) + AM/PM toggle, check-off and
+  delete per event. Today and future dates only, local `events.json`
+  persistence.
+
+  ![Event list](docs/screenshots/check-event.png)
+  ![Add event](docs/screenshots/add-new-event.png)
 - **Desktop clock** — minimalist day / date / `- time -` restyle of the
   upstream desktop clock (existing scale, background/blur/shadow and
   12h/24h settings still apply). The day name uses Lincoln Electric Over
@@ -76,8 +82,10 @@ verifies, and reloads the shell. Re-running is safe (idempotent).
 - Stopwatch tab: Start/Pause, Lap, Reset. Laps and elapsed time persist.
 - Tasks: `+` FAB or type + Enter, Unfinished/Done tabs, click to
   check/uncheck, hover for delete. Speaker icon mutes the timer chime.
-- Calendar: hover top-center → dashboard → click a date to add/view
-  events; days with events show a dot.
+- Calendar: hover top-center → dashboard → click a date to see its
+  events; days with events show a dot. **Add event** opens the form:
+  type a title, set the hour/minute steppers (59 ▲ carries +1 hour)
+  and AM/PM, then Save. Past dates are view-only.
 - The timer keeps running and notifies with the dashboard closed
   (the shell process itself must be running).
 
