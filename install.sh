@@ -328,16 +328,20 @@ patch(calendar,
     }
 }''')
 
-# --- Patch 6b: popover frosted-backdrop source -------------------------
-patch(calendar,
-      'blurSource: inner',
-      '''    EventPopover {
-        id: eventPopover
-''',
-      '''    EventPopover {
-        id: eventPopover
-        blurSource: inner
-''')
+# --- Patch 6b: RETIRED (frosted backdrop removed) ----------------------
+# The live-blur experiment proved ineffective on this GPU, so the dialog
+# uses a flat surface and no longer needs a capture source. This block
+# removes the line from shadows patched while 6b was active; no-ops
+# everywhere else. Kept (not deleted) so old shadows heal on reinstall.
+retired = dest + "/modules/dashboard/dash/Calendar.qml"
+with open(retired) as f:
+    caltext = f.read()
+if '        blurSource: inner\n' in caltext:
+    with open(retired, "w") as f:
+        f.write(caltext.replace('        blurSource: inner\n', '', 1))
+    print("  retired: blurSource: inner")
+else:
+    print("  already retired: blurSource: inner")
 PYEOF
 }
 
