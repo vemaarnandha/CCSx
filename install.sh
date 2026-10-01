@@ -110,6 +110,13 @@ overlay_files() {
     local rel
     for rel in "${FILES[@]}"; do
         [ -f "$SRC/$rel" ] || fail "repo file missing: quickshell/caelestia/$rel"
+        # Upstream-overwrite files: preserve the pristine copy BEFORE
+        # overlaying, so uninstall.sh can restore it. (apply_patches runs
+        # after overlay, too late for these.)
+        if [ "$rel" = "modules/background/DesktopClock.qml" ] && [ ! -f "$DEST/$rel.bak" ] && [ -f "$DEST/$rel" ]; then
+            log "backup pristine $rel -> $rel.bak"
+            run cp "$DEST/$rel" "$DEST/$rel.bak"
+        fi
         log "install $rel"
         run mkdir -p "$(dirname "$DEST/$rel")"
         run cp "$SRC/$rel" "$DEST/$rel"
