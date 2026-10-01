@@ -8,8 +8,11 @@
   and 12h/24h still follow existing config). The day name uses
   user-installed Lincoln Electric Over (commercial, Canada Type) via
   fontconfig (not bundled); date and time use the readable UI font from
-  the shell config. The installer warns when Lincoln Electric is missing.
-  Uninstall restores the pristine upstream file from `.bak`.
+  the shell config. Every clock line carries a full-strength neon glow in
+  its own text color (layer MultiEffect) for readability over bright
+  wallpapers. The installer
+  warns when Lincoln Electric is missing. Uninstall restores the
+  pristine upstream file from `.bak`.
 - Calendar events: dot markers on days with events, click a date to
   add/view events in a dialog (today and future dates), local
   events.json persistence with self-healing load.

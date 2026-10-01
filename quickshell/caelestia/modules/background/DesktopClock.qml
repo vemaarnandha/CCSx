@@ -89,6 +89,14 @@ Item {
                 color: root.safePrimary
                 Layout.alignment: Qt.AlignHCenter
                 horizontalAlignment: Text.AlignHCenter
+
+                layer.enabled: true
+                layer.effect: MultiEffect {
+                    shadowEnabled: true
+                    shadowColor: root.safePrimary
+                    shadowOpacity: 1
+                    shadowBlur: 1
+                }
             }
 
             StyledText {
@@ -100,6 +108,14 @@ Item {
                 color: root.safeSecondary
                 Layout.alignment: Qt.AlignHCenter
                 horizontalAlignment: Text.AlignHCenter
+
+                layer.enabled: true
+                layer.effect: MultiEffect {
+                    shadowEnabled: true
+                    shadowColor: root.safeSecondary
+                    shadowOpacity: 1
+                    shadowBlur: 1
+                }
             }
 
             StyledText {
@@ -111,6 +127,14 @@ Item {
                 color: root.safeSecondary
                 Layout.alignment: Qt.AlignHCenter
                 horizontalAlignment: Text.AlignHCenter
+
+                layer.enabled: true
+                layer.effect: MultiEffect {
+                    shadowEnabled: true
+                    shadowColor: root.safeSecondary
+                    shadowOpacity: 1
+                    shadowBlur: 1
+                }
             }
         }
     }
